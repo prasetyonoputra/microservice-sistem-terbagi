@@ -7,7 +7,7 @@ const User = require('./models/user');
 const {
     auth
 } = require('./middlewares/auth');
-
+const axios = require('axios');
 
 const app = express();
 // app use
@@ -24,22 +24,17 @@ mongoose.connect(db.DATABASE, {
     useUnifiedTopology: true
 }, function (err) {
     if (err) console.log(err);
-    console.log("database is connected");
+    console.log("Database Auth is connected");
 });
 
 
-app.get('/', function (req, res) {
-    res.status(200).send(`Welcome to login , sign-up api`);
+app.get('/api/auth-service', function (req, res) {
+    res.status(200).send(`Welcome to auth-service!`);
 });
 
 // adding new user (sign-up route)
-app.post('/api/register', function (req, res) {
-
-    console.log(req.body);
-
-    
+app.post('/api/auth-service/register', function (req, res) {
     const newuser = new User(req.body);
-
 
     if (newuser.password != newuser.password2) return res.status(400).json({
         message: "password not match"
@@ -60,6 +55,21 @@ app.post('/api/register', function (req, res) {
                     success: false
                 });
             }
+
+
+            axios.post('http://localhost:3001/api/member-service/register', {
+                firstname: req.body.firstname,
+                lastname: req.body.lastname,
+                email: req.body.email
+              })
+              .then(function (response) {
+                console.log(response);
+              })
+              .catch(function (error) {
+                console.log(error);
+              });
+
+
             res.status(200).json({
                 succes: true,
                 user: doc
@@ -70,8 +80,11 @@ app.post('/api/register', function (req, res) {
 
 
 // login user
-app.post('/api/login', function (req, res) {
+app.post('/api/auth-service/login', function (req, res) {
     let token = req.cookies.auth;
+
+    console.log(req.cookies.auth);
+
     User.findByToken(token, (err, user) => {
         if (err) return res(err);
         if (user) return res.status(400).json({
@@ -110,7 +123,7 @@ app.post('/api/login', function (req, res) {
 
 
 // get logged in user
-app.get('/api/profile', auth, function (req, res) {
+app.get('/api/auth-service/profile', auth, function (req, res) {
     res.json({
         isAuth: true,
         id: req.user._id,
@@ -122,7 +135,7 @@ app.get('/api/profile', auth, function (req, res) {
 
 
 //logout user
-app.get('/api/logout', auth, function (req, res) {
+app.get('/api/auth-service/logout', auth, function (req, res) {
     req.user.deleteToken(req.token, (err, user) => {
         if (err) return res.status(400).send(err);
         res.sendStatus(200);

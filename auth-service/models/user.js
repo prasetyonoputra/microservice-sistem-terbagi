@@ -67,7 +67,6 @@ userSchema.methods.comparepassword = function (password, cb) {
 
 
 // generate token
-
 userSchema.methods.generateToken = function (cb) {
     var user = this;
     var token = jwt.sign(user._id.toHexString(), confiq.SECRET);
@@ -96,11 +95,10 @@ userSchema.statics.findByToken = function (token, cb) {
 
 
 //delete token
-
 userSchema.methods.deleteToken = function (token, cb) {
     var user = this;
 
-    user.update({
+    user.updateOne({
         $unset: {
             token: 1
         }
