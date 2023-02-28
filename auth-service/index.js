@@ -10,7 +10,6 @@ const {
 const axios = require('axios');
 
 const app = express();
-// app use
 app.use(bodyparser.urlencoded({
     extended: false
 }));
@@ -27,7 +26,6 @@ mongoose.connect(db.DATABASE, {
     console.log("Database Auth is connected");
 });
 
-
 app.get('/api/auth-service', function (req, res) {
     res.status(200).send(`Welcome to auth-service!`);
 });
@@ -37,14 +35,14 @@ app.post('/api/auth-service/register', function (req, res) {
     const newuser = new User(req.body);
 
     if (newuser.password != newuser.password2) return res.status(400).json({
-        message: "password not match"
+        message: "Password tidak sesuai!"
     });
 
     User.findOne({
         email: newuser.email
     }, function (err, user) {
         if (user) return res.status(400).json({
-            auth: false,
+            isAuth: false,
             message: "Email sudah terdaftar"
         });
 
@@ -56,18 +54,17 @@ app.post('/api/auth-service/register', function (req, res) {
                 });
             }
 
-
-            axios.post('http://localhost:3001/api/member-service/register', {
-                firstname: req.body.firstname,
-                lastname: req.body.lastname,
-                email: req.body.email
-              })
-              .then(function (response) {
-                console.log(response);
-              })
-              .catch(function (error) {
-                console.log(error);
-              });
+            // axios.post('http://localhost:3001/api/member-service/register', {
+            //     firstname: req.body.firstname,
+            //     lastname: req.body.lastname,
+            //     email: req.body.email
+            //   })
+            //   .then(function (response) {
+            //     console.log(response);
+            //   })
+            //   .catch(function (error) {
+            //     console.log(error);
+            //   });
 
 
             res.status(200).json({
@@ -78,18 +75,15 @@ app.post('/api/auth-service/register', function (req, res) {
     });
 });
 
-
 // login user
 app.post('/api/auth-service/login', function (req, res) {
     let token = req.cookies.auth;
 
-    console.log(req.cookies.auth);
-
     User.findByToken(token, (err, user) => {
         if (err) return res(err);
         if (user) return res.status(400).json({
-            error: true,
-            message: "Email ini telah login"
+            isAuth: false,
+            message: "Anda telah login!"
         });
 
         else {
@@ -98,13 +92,13 @@ app.post('/api/auth-service/login', function (req, res) {
             }, function (err, user) {
                 if (!user) return res.json({
                     isAuth: false,
-                    message: ' Auth failed ,email not found'
+                    message: ' Email tidak ditemukan!'
                 });
 
                 user.comparepassword(req.body.password, (err, isMatch) => {
                     if (!isMatch) return res.json({
                         isAuth: false,
-                        message: "password doesn't match"
+                        message: "Password salah!"
                     });
 
                     user.generateToken((err, user) => {
@@ -112,7 +106,8 @@ app.post('/api/auth-service/login', function (req, res) {
                         res.cookie('auth', user.token).json({
                             isAuth: true,
                             id: user._id,
-                            email: user.email
+                            email: user.email,
+                            token: user.token
                         });
                     });
                 });
@@ -121,18 +116,24 @@ app.post('/api/auth-service/login', function (req, res) {
     });
 });
 
-
 // get logged in user
 app.get('/api/auth-service/profile', auth, function (req, res) {
     res.json({
         isAuth: true,
         id: req.user._id,
-        email: req.user.email,
-        name: req.user.firstname + req.user.lastname
-
+        token: req.user.token,
+        email: req.user.email
     })
 });
 
+app.post('/api/auth-service/delete', auth, function (req, res) {
+    User.deleteOne(
+        {email: req.body.email},
+        (err) => {
+            res.send("Sukses delete!");
+        }
+    )
+});
 
 //logout user
 app.get('/api/auth-service/logout', auth, function (req, res) {
@@ -140,7 +141,6 @@ app.get('/api/auth-service/logout', auth, function (req, res) {
         if (err) return res.status(400).send(err);
         res.sendStatus(200);
     });
-
 });
 
 // listening port
