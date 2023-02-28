@@ -4,10 +4,6 @@ const bodyparser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const db = require('./config/config').get(process.env.NODE_ENV);
 const User = require('./models/user');
-const {
-    auth
-} = require('./middlewares/auth');
-const axios = require('axios');
 
 const app = express();
 app.use(bodyparser.urlencoded({
@@ -16,7 +12,6 @@ app.use(bodyparser.urlencoded({
 app.use(bodyparser.json());
 app.use(cookieParser());
 
-// database connection
 mongoose.Promise = global.Promise;
 mongoose.connect(db.DATABASE, {
     useNewUrlParser: true,
@@ -30,23 +25,23 @@ app.get('/api/auth-service', function (req, res) {
     res.status(200).send(`Welcome to auth-service!`);
 });
 
-// adding new user (sign-up route)
+// Register user
 app.post('/api/auth-service/register', function (req, res) {
-    const newuser = new User(req.body);
+    const newUser = new User(req.body);
 
-    if (newuser.password != newuser.password2) return res.status(400).json({
+    if (newUser.password != newUser.password2) return res.status(400).json({
         message: "Password tidak sesuai!"
     });
 
     User.findOne({
-        email: newuser.email
+        email: newUser.email
     }, function (err, user) {
         if (user) return res.status(400).json({
             isAuth: false,
             message: "Email sudah terdaftar"
         });
 
-        newuser.save((err, doc) => {
+        newUser.save((err, doc) => {
             if (err) {
                 console.log(err);
                 return res.status(400).json({
@@ -54,21 +49,8 @@ app.post('/api/auth-service/register', function (req, res) {
                 });
             }
 
-            // axios.post('http://localhost:3001/api/member-service/register', {
-            //     firstname: req.body.firstname,
-            //     lastname: req.body.lastname,
-            //     email: req.body.email
-            //   })
-            //   .then(function (response) {
-            //     console.log(response);
-            //   })
-            //   .catch(function (error) {
-            //     console.log(error);
-            //   });
-
-
             res.status(200).json({
-                succes: true,
+                success: true,
                 user: doc
             });
         });
@@ -77,59 +59,45 @@ app.post('/api/auth-service/register', function (req, res) {
 
 // login user
 app.post('/api/auth-service/login', function (req, res) {
-    let token = req.cookies.auth;
+    let email = req.body.email;
+    let password = req.body.password;
 
-    User.findByToken(token, (err, user) => {
-        if (err) return res(err);
-        if (user) return res.status(400).json({
+    User.findOne({
+        'email': req.body.email
+    }, function (err, user) {
+        if (!user) return res.json({
             isAuth: false,
-            message: "Anda telah login!"
+            message: ' Email tidak ditemukan!'
         });
 
-        else {
-            User.findOne({
-                'email': req.body.email
-            }, function (err, user) {
-                if (!user) return res.json({
+        if (!user.token) {
+            user.comparepassword(req.body.password, (err, isMatch) => {
+                if (!isMatch) return res.json({
                     isAuth: false,
-                    message: ' Email tidak ditemukan!'
+                    message: "Password salah!"
                 });
 
-                user.comparepassword(req.body.password, (err, isMatch) => {
-                    if (!isMatch) return res.json({
-                        isAuth: false,
-                        message: "Password salah!"
-                    });
-
-                    user.generateToken((err, user) => {
-                        if (err) return res.status(400).send(err);
-                        res.cookie('auth', user.token).json({
-                            isAuth: true,
-                            id: user._id,
-                            email: user.email,
-                            token: user.token
-                        });
+                user.generateToken((err, user) => {
+                    if (err) return res.status(400).send(err);
+                    res.status(200).json({
+                        isAuth: true,
+                        email: user.email,
+                        token: user.token
                     });
                 });
+            });
+        } else {
+            res.status(400).json({
+                isAuth: false,
+                message: "Email ini telah login!"
             });
         }
     });
 });
 
-// get logged in user
-app.get('/api/auth-service/profile', auth, function (req, res) {
-    res.json({
-        isAuth: true,
-        id: req.user._id,
-        token: req.user.token,
-        email: req.user.email
-    })
-});
-
-app.get('/api/auth-service/cek', function (req, res) {
+// User profile
+app.get('/api/auth-service/profile', function (req, res) {
     let token = req.body.token;
-
-    console.log(token)
 
     User.findOne({
         token: token
@@ -139,27 +107,134 @@ app.get('/api/auth-service/cek', function (req, res) {
             message: "Token tidak sesuai"
         });
 
-        res.json({
+        res.status(200).json({
+            isAuth: true,
+            id: user._id,
+            token: user.token,
+            email: user.email,
+            noHp: user.noHp,
+            alamat: user.alamat
+        })
+    });
+});
+
+// Cek token
+app.get('/api/auth-service/cek', function (req, res) {
+    let token = req.body.token;
+
+    User.findOne({
+        token: token
+    }, function (err, user) {
+        if (!user) return res.status(400).json({
+            isAuth: false,
+            message: "Token tidak sesuai"
+        });
+
+        res.status(200).json({
             isAuth: true
         })
     });
 });
 
-app.post('/api/auth-service/delete', auth, function (req, res) {
-    User.deleteOne(
-        {email: req.body.email},
-        (err) => {
-            res.send("Sukses delete!");
-        }
-    )
+// Delete User
+app.post('/api/auth-service/delete', function (req, res) {
+    let token = req.body.token;
+
+    User.findOne({
+        token: token
+    }, function (err, user) {
+        if (!user) return res.status(400).json({
+            isAuth: false,
+            message: "Token tidak sesuai"
+        });
+
+        User.deleteOne({
+                token: token
+            },
+            (err) => {
+                res.status(200).json({
+                    message: "Sukses delete!"
+                });
+            }
+        )
+    })
+});
+
+//Edit user
+app.get('/api/auth-service/edit', function (req, res) {
+    let token = req.body.token;
+
+    User.findOne({
+        token: token
+    }, function (err, user) {
+        if (!user) return res.status(400).json({
+            isAuth: false,
+            message: "Token tidak sesuai"
+        });
+
+        User.replaceOne({
+            token: token
+            }, {
+                firstname: req.body.firstname,
+                lastname: req.body.lastname,
+                email: req.body.email,
+                password: user.password,
+                password2: user.password2,
+                noHp: req.body.noHp,
+                alamat: req.body.alamat,
+                token: token
+            }, {
+                overwrite: true
+            },
+            (err) => {
+                if (!err) {
+                    res.json({
+                        message: "Sukses edit!"
+                    })
+                } else {
+                    console.log(err)
+                }
+            }
+        )
+    })
 });
 
 //logout user
-app.get('/api/auth-service/logout', auth, function (req, res) {
-    req.user.deleteToken(req.token, (err, user) => {
-        if (err) return res.status(400).send(err);
-        res.sendStatus(200);
-    });
+app.get('/api/auth-service/logout', function (req, res) {
+    let token = req.body.token;
+
+    User.findOne({
+        token: token
+    }, function (err, user) {
+        if (!user) return res.status(400).json({
+            isAuth: false,
+            message: "Token tidak sesuai"
+        });
+
+        User.replaceOne({
+            token: token
+            }, {
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email,
+                password: user.password,
+                password2: user.password2,
+                noHp: user.noHp,
+                alamat: user.alamat
+            }, {
+                overwrite: true
+            },
+            (err) => {
+                if (!err) {
+                    res.json({
+                        message: "Sukses logout!"
+                    })
+                } else {
+                    console.log(err)
+                }
+            }
+        )
+    })
 });
 
 // listening port

@@ -24,12 +24,24 @@ const userSchema = mongoose.Schema({
     password: {
         type: String,
         required: true,
-        minlength: 8
+        minlength: 1
     },
     password2: {
         type: String,
         required: true,
-        minlength: 8
+        minlength: 1
+
+    },
+    noHp: {
+        type: String,
+        required: false,
+        minlength: 1
+
+    },
+    alamat: {
+        type: String,
+        required: false,
+        minlength: 1
 
     },
     token: {
@@ -73,36 +85,6 @@ userSchema.methods.generateToken = function (cb) {
 
     user.token = token;
     user.save(function (err, user) {
-        if (err) return cb(err);
-        cb(null, user);
-    })
-}
-
-// find by token
-userSchema.statics.findByToken = function (token, cb) {
-    var user = this;
-
-    jwt.verify(token, confiq.SECRET, function (err, decode) {
-        user.findOne({
-            "_id": decode,
-            "token": token
-        }, function (err, user) {
-            if (err) return cb(err);
-            cb(null, user);
-        })
-    })
-};
-
-
-//delete token
-userSchema.methods.deleteToken = function (token, cb) {
-    var user = this;
-
-    user.updateOne({
-        $unset: {
-            token: 1
-        }
-    }, function (err, user) {
         if (err) return cb(err);
         cb(null, user);
     })
