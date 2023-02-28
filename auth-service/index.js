@@ -129,22 +129,20 @@ app.get('/api/auth-service/profile', auth, function (req, res) {
 app.get('/api/auth-service/cek', function (req, res) {
     let token = req.body.token;
 
+    console.log(token)
+
     User.findOne({
         token: token
     }, function (err, user) {
-        if (user) return res.status(400).json({
+        if (!user) return res.status(400).json({
             isAuth: false,
             message: "Token tidak sesuai"
         });
 
         res.json({
-            isAuth: true,
-            id: req.user._id,
-            token: req.user.token,
-            email: req.user.email
+            isAuth: true
         })
     });
-
 });
 
 app.post('/api/auth-service/delete', auth, function (req, res) {
