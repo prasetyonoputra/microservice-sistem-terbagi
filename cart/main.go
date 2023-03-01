@@ -72,6 +72,10 @@ func main() {
 		addOrder(w, r, db)
 	}).Methods("POST")
 
+	r.HandleFunc("/updateStatusOrder", func(w http.ResponseWriter, r *http.Request) {
+		updateStatusOrder(w, r, db)
+	}).Methods("POST")
+
 	// Start the server
 	log.Println("Server started on port 8881")
 	log.Fatal(http.ListenAndServe(":8881", r))
@@ -187,6 +191,55 @@ func addOrder(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(cart)
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		errorResp := ErrorResp{
+			Error:   true,
+			Message: "Terjadi Kesalahan",
+		}
+		err = json.NewEncoder(w).Encode(errorResp)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func updateStatusOrder(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	type Body struct {
+		TokenAuth string `json:"token_auth"`
+		IdOrder   string `json:"id_order"`
+		Status    string `json:"status"`
+	}
+
+	var body Body
+
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	auth := getAuth(body.TokenAuth)
+	checkAuth := auth.IsAuth
+	if checkAuth {
+
+		sql := "UPDATE cart SET status = '" + body.Status + "' WHERE id = " + body.IdOrder + ";"
+
+		rows, err := db.Query(sql)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		success := ErrorResp{
+			Error:   false,
+			Message: "Status Order Berhasil Di Proses",
+		}
+		err = json.NewEncoder(w).Encode(success)
 		if err != nil {
 			log.Fatal(err)
 		}
