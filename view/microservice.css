@@ -1,0 +1,19 @@
+.listProduct {
+    display: flex;
+    border: solid;
+    padding: 30px;
+    align-items: center;
+    justify-content: center;
+    margin: 0px 100px 0px 100px;
+}
+
+.boxProduct {
+    border: solid;
+    padding: 20px;
+    margin: 10px;
+    text-align: center;
+}
+
+.imageProduct {
+    width: 150px;
+}

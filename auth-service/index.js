@@ -4,6 +4,7 @@ const bodyparser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const db = require('./config/config').get(process.env.NODE_ENV);
 const User = require('./models/user');
+const cors = require('cors');
 
 const app = express();
 app.use(bodyparser.urlencoded({
@@ -11,6 +12,10 @@ app.use(bodyparser.urlencoded({
 }));
 app.use(bodyparser.json());
 app.use(cookieParser());
+
+app.use(cors({
+    origin: '*'
+}));
 
 mongoose.Promise = global.Promise;
 mongoose.connect(db.DATABASE, {
@@ -96,7 +101,7 @@ app.post('/api/auth-service/login', function (req, res) {
 });
 
 // User profile
-app.get('/api/auth-service/profile', function (req, res) {
+app.post('/api/auth-service/profile', function (req, res) {
     let token = req.body.token;
 
     User.findOne({
@@ -113,7 +118,9 @@ app.get('/api/auth-service/profile', function (req, res) {
             token: user.token,
             email: user.email,
             noHp: user.noHp,
-            alamat: user.alamat
+            alamat: user.alamat,
+            firstName: user.firstname,
+            lastName: user.lastname
         })
     });
 });
@@ -200,7 +207,7 @@ app.get('/api/auth-service/edit', function (req, res) {
 });
 
 //logout user
-app.get('/api/auth-service/logout', function (req, res) {
+app.post('/api/auth-service/logout', function (req, res) {
     let token = req.body.token;
 
     User.findOne({
